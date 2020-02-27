@@ -1,7 +1,3 @@
-from collections import Counter
-import heapq
-
-
 class Vocabulary:
     def __init__(self, word):
         self.name = word
@@ -13,14 +9,14 @@ class Vocabulary:
         return self._count
 
     def increment(self):
-        self._count +=1
+        self._count += 1
 
     @property
     def vector_repr(self):
         return self._vector_repr
 
-class Vocabularies:
 
+class Vocabularies:
     def __init__(self, sentences):
         self.get_vocabularies(sentences)
 
@@ -38,13 +34,20 @@ class Vocabularies:
                     setattr(self, word, Vocabulary(word))
 
     def list_vocab(self):
-        return [vocab for vocab in dir(self) if not vocab.startswith('__')]
+        return [vocab for vocab in dir(self) if not vocab.startswith("__")]
 
     def list_vocab_by_count(self):
 
-        vocabulary_to_count = {vocab: getattr(self, vocab).count for vocab in dir(self) if not vocab.startswith('__')}
+        vocabulary_to_count = {
+            vocab: getattr(self, vocab).count
+            for vocab in dir(self)
+            if not vocab.startswith("__") and not callable(getattr(self, vocab))
+        }
 
-        return [(k, v) for k, v in sorted(vocabulary_to_count.items(), key=lambda item: item[1])]
+        return [
+            (k, v)
+            for k, v in sorted(vocabulary_to_count.items(), key=lambda item: item[1], reverse=True)
+        ]
 
     def most_common(self):
 
