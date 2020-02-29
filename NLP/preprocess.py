@@ -1,6 +1,4 @@
-import requests
-from bs4 import BeautifulSoup
-from vocabularies import Vocabularies
+from .vocabularies import Vocabularies
 
 STOPWORDS = {
     "a",
@@ -76,6 +74,7 @@ STOPWORDS = {
     "in",
     "into",
     "is",
+    "isbn",
     "isn",
     "isn't",
     "it",
@@ -186,42 +185,6 @@ STOPWORDS = {
 }
 
 
-def clean_sentences(unclean_sentences):
-    sentences = []
-    for sentence in unclean_sentences:
-        sentences.append(clean_sentence(sentence))
-
-    return sentences
-
-
-def clean_sentence(sentence):
-    # Remove non-alphanumeric characters
-    words = sentence.split()
-    words = [word for word in words if word.isalnum()]
-    return " ".join(words)
-
-
-def extract_sentences_from_wiki(url):
-
-    unclean_output = extract_article_from_wiki(url)
-    unclean_sentences = unclean_output.split(". ")
-
-    return unclean_sentences
-
-
-def extract_article_from_wiki(url):
-    res = requests.get(url)
-    html_page = res.content
-    soup = BeautifulSoup(html_page, "html.parser")
-    text = soup.find_all(text=True)
-    whitelist = ["p", "a"]
-    article = ""
-    for t in text:
-        if t.parent.name in whitelist:
-            article += "{} ".format(t)
-    return article
-
-
 def remove_non_alphanumeric(article):
     # Remove non-alphanumeric characters
     words = article.split()
@@ -231,7 +194,7 @@ def remove_non_alphanumeric(article):
 
 def remove_rare_characters_by_word_count(article, word_count):
     vocabs = Vocabularies(article)
-    list_vocabs = vocabs.list_vocabs_by_count(ascending=True)
+    list_vocabs = vocabs.list_by_count(ascending=True)
     vocabs_to_be_removed = set()
     for v, c in list_vocabs:
         if c > word_count:
@@ -247,9 +210,9 @@ def remove_rare_characters_by_word_count(article, word_count):
     return " ".join(new_article)
 
 
-def keep_top_n_vobularies(article, n):
+def keep_top_n_vocabularies(article, n):
     vocabs = Vocabularies(article)
-    list_vocabs = vocabs.list_vocabs_by_count()
+    list_vocabs = vocabs.list_by_count()
     vocabs_to_be_added, _ = zip(*list_vocabs[:n])
     vocabs_to_be_added = set(vocabs_to_be_added)
 
@@ -264,7 +227,7 @@ def keep_top_n_vobularies(article, n):
 
 def remove_rare_characters_by_count(article, count):
     vocabs = Vocabularies(article)
-    list_vocabs = vocabs.list_vocabs_by_count(ascending=True)
+    list_vocabs = vocabs.list_by_count(ascending=True)
     vocabs_to_be_removed = set()
     counter = 0
     for v, c in list_vocabs:
@@ -272,7 +235,7 @@ def remove_rare_characters_by_count(article, count):
             break
         else:
             vocabs_to_be_removed.add(v)
-            counter +=1
+            counter += 1
     new_article = []
     for word in article.split():
         lower_word = word.lower()
