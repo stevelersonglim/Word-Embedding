@@ -1,1 +1,1 @@
-# Natural-Language-Processing
+# Word Embedding Project
