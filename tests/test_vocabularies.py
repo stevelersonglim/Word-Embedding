@@ -98,3 +98,4 @@ class TestVocabularies:
         df.at[df.index[df["vocabulary"] == "this"][0], "vector"] = [1, 1]
         assert vocabs.get_vector("this") == [1, 1]
         assert vocabs.get_vector("is") is None
+

@@ -4,17 +4,19 @@ from collections import defaultdict
 from sklearn.manifold import TSNE
 import pandas as pd
 import numpy as np
-from .prepare import build_training_data_for_word_embedding
+from .prepare import build_training_data_for_word_embedding, training_data_from_sentences
 import tensorflow as tf
 from .model import word2vec
+from tensorflow.keras.callbacks import EarlyStopping
+
 
 class Vocabularies:
-    def __init__(self, article=None, fit=False):
+    def __init__(self, sentences=None, fit=False):
         self._vocabs_with_count = dict()
         self._data = None
         self.total_count = None
-        if article:
-            self.from_article(article)
+        if sentences:
+            self.from_sentences(sentences)
         if fit:
             self.fit_vector(article)
 
@@ -26,6 +28,27 @@ class Vocabularies:
 
     def __len__(self):
         return self.total_count
+
+    def from_sentences(self, sentences):
+        index = 0
+        data = defaultdict(list)
+        for sentence in sentences:
+            for word in sentence.split():
+                word = word.lower()
+                if word in self._vocabs_with_count:
+                    self._vocabs_with_count[word] += 1
+                else:
+                    data["vocabulary"].append(word)
+                    self._vocabs_with_count[word] = 1
+                    data["index"].append(index)
+                    index += 1
+
+        for word in data["vocabulary"]:
+            data["count"].append(self._vocabs_with_count[word])
+        df = pd.DataFrame(data)
+        df["vector"] = None
+        self._data = df
+        self.total_count = len(self._vocabs_with_count)
 
     def list_all(self):
         return set(self._vocabs_with_count.keys())
@@ -47,8 +70,6 @@ class Vocabularies:
             data["count"].append(self._vocabs_with_count[word])
         df = pd.DataFrame(data)
         df["vector"] = None
-        df["tse1"] = None
-        df["tse2"] = None
         self._data = df
         self.total_count = len(self._vocabs_with_count)
 
@@ -112,24 +133,24 @@ class Vocabularies:
     def perform_tsne(self):  # pragma: no cover
         df = self._data
         tsne_output = TSNE(n_components=2).fit_transform(np.array(list(df["vector"])))
-        df["tse1"] = tsne_output[:, 0]
-        df["tse2"] = tsne_output[:, 1]
-        return [tuple(item) for item in df[["vocabulary", "tse1", "tse2"]].to_numpy()]
+        df["tsne1"] = tsne_output[:, 0]
+        df["tsne2"] = tsne_output[:, 1]
+        return [tuple(item) for item in df[["vocabulary", "tsne1", "tsne2"]].to_numpy()]
 
-    def plot(self):  # pragma: no cover
+    def plot2d(self, n):  # pragma: no cover
         self.perform_tsne()
-
+        df = self._data.sort_values(by='count', ascending=False)[:n]
         alt.renderers.enable("notebook")
         point = (
             alt.Chart(
-                self._data, title="PCA Embedding Space", height=1000, width=800,
+                df, title="tsne Embedding Space", height=1000, width=800,
             )
             .mark_point()
-            .encode(x="tse1", y="tse2")
+            .encode(x="tsne1:Q", y="tsne2:Q")
         )
 
         text = point.mark_text(align="left", baseline="middle", dx=7).encode(
-            text="word"
+            text="vocabulary:O"
         )
 
         return point + text
@@ -146,12 +167,32 @@ class Vocabularies:
             embedding_dim = int(0.5 * len(self))
         if not batch_size:
             batch_size = int(0.3 * len(training_data))
-
+        callback = EarlyStopping(monitor='loss', min_delta=0, patience=100)
         model = word2vec(embedding_dim, len(self), batch_size)
-        model.fit(training_input, training_output, epochs=100000, batch_size=batch_size)
+        model.fit(training_input, training_output, epochs=epoch, batch_size=batch_size, callbacks=[callback])
 
         for vocab in self:
             v = np.copy(model.weights[0][self.get_index(vocab)].numpy())
             df = self._data
             df.at[df.index[df["vocabulary"] == vocab][0], "vector"] = v
-            vocab.vector = v
+
+    def fit_vector_using_glove(self, sentences, window_size=2, embedding_dim=None, batch_size=None, epoch=1000):
+        training_data = training_data_from_sentences(sentences, window_size)
+
+        training_input, training_output = zip(*[(self.get_index(context), self.get_index(target)) for context, target in training_data])
+
+        training_input = tf.reshape(tf.convert_to_tensor(training_input), [len(training_input), 1])
+        training_output = tf.reshape(tf.convert_to_tensor(training_output), [len(training_output), 1])
+
+        if not embedding_dim:
+            embedding_dim = int(0.5 * len(self))
+        if not batch_size:
+            batch_size = int(0.3 * len(training_data))
+        callback = EarlyStopping(monitor='loss', min_delta=0, patience=100)
+        model = word2vec(embedding_dim, len(self), batch_size)
+        model.fit(training_input, training_output, epochs=epoch, batch_size=batch_size, callbacks=[callback])
+
+        for vocab in self:
+            v = np.copy(model.weights[0][self.get_index(vocab)].numpy())
+            df = self._data
+            df.at[df.index[df["vocabulary"] == vocab][0], "vector"] = v

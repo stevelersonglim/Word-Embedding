@@ -184,13 +184,19 @@ STOPWORDS = {
     "yourselves",
 }
 
+def to_sentences(article):
+    return article.split(". ")
 
-def remove_non_alphanumeric(article):
-    # Remove non-alphanumeric characters
-    words = article.split()
-    words = [word for word in words if word.isalnum()]
-    return " ".join(words)
+def remove_commas(sentences):
+    return [sentence.replace(',', '') for sentence in sentences]
 
+def remove_punctuations(sentences):
+    new_sentences = []
+    for sentence in sentences:
+        words = sentence.split()
+        words = [word for word in words if word != "." and word != ","]
+        new_sentences.append(" ".join(words))
+    return new_sentences
 
 def remove_rare_characters_by_word_count(article, word_count):
     vocabs = Vocabularies(article)
