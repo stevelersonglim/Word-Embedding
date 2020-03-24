@@ -11,14 +11,11 @@ from tensorflow.keras.callbacks import EarlyStopping
 
 
 class Vocabularies:
-    def __init__(self, sentences=None, fit=False):
+    def __init__(self, training_data):
         self._vocabs_with_count = dict()
         self._data = None
         self.total_count = None
-        if sentences:
-            self.from_sentences(sentences)
-        if fit:
-            self.fit_vector(article)
+        self.from_training_data(training_data)
 
     def __iter__(self):
         return iter(list(self._data["vocabulary"]))
@@ -28,6 +25,27 @@ class Vocabularies:
 
     def __len__(self):
         return self.total_count
+
+    def from_training_data(self, training_data):
+        index = 0
+        data = defaultdict(list)
+
+        for word, _ in training_data:
+            word = word.lower()
+            if word in self._vocabs_with_count:
+                self._vocabs_with_count[word] += 1
+            else:
+                data["vocabulary"].append(word)
+                self._vocabs_with_count[word] = 1
+                data["index"].append(index)
+                index += 1
+
+        for word in data["vocabulary"]:
+            data["count"].append(self._vocabs_with_count[word])
+        df = pd.DataFrame(data)
+        df["vector"] = None
+        self._data = df
+        self.total_count = len(self._vocabs_with_count)
 
     def from_sentences(self, sentences):
         index = 0

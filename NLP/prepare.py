@@ -20,7 +20,7 @@ def training_data_from_sentences(sentences, window_size):
         words = sentence.split()
         for i in range(len(words)):
             for j in range(max(0, i - window_size), min(len(words),i + window_size)):
-                if j == i:
+                if j == i or words[i] == words[j]:
                     continue
                 else:
                     training_data.append([words[i].lower(), words[j].lower()])

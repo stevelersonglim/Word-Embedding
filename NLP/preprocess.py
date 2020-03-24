@@ -257,4 +257,5 @@ def remove_stop_words(article):
         lower_word = word.lower()
         if lower_word not in set(STOPWORDS):
             new_article.append(word)
+
     return " ".join(new_article)
