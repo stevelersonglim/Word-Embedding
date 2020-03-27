@@ -56,6 +56,7 @@ def _extract_section_article(sections):
         section = section[section.find("<p>"):]
         section = remove_tag(section, "<", ">")
         section = remove_tag(section, "[", "]")
+        section = remove_tag(section, "(", ")")
         section = remove_extra_whitespace(remove_newline(section))
         section = remove_xa(section)
         section = remove_dot(section)

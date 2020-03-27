@@ -9,13 +9,19 @@ import tensorflow as tf
 from .model import word2vec
 from tensorflow.keras.callbacks import EarlyStopping
 
+class Vocabulary:
+
+    def __init__(self, name, vector1, vector2):
+
+
 
 class Vocabularies:
-    def __init__(self, training_data):
+    def __init__(self, training_data=None):
         self._vocabs_with_count = dict()
         self._data = None
         self.total_count = None
-        self.from_training_data(training_data)
+        if training_data:
+            self.from_training_data(training_data)
 
     def __iter__(self):
         return iter(list(self._data["vocabulary"]))
@@ -43,7 +49,8 @@ class Vocabularies:
         for word in data["vocabulary"]:
             data["count"].append(self._vocabs_with_count[word])
         df = pd.DataFrame(data)
-        df["vector"] = None
+        df["vector1"] = None
+        df["vector2"] = None
         self._data = df
         self.total_count = len(self._vocabs_with_count)
 
@@ -112,13 +119,13 @@ class Vocabularies:
     def get_most_similar_words(self, word, n):
         # this code snippet pick top 10 words
 
-        word_vector = self._data[self._data["vocabulary"] == word]["vector"].values[0]
+        word_vector = self._data[self._data["vocabulary"] == word]["vector1"].values[0]
         cosine_vocab = []
 
         for vocab in self.list_all():
             if vocab == word:
                 continue
-            vector = self._data[self._data["vocabulary"] == vocab]["vector"].values[0]
+            vector = self._data[self._data["vocabulary"] == vocab]["vector1"].values[0]
             cosine_value = np.dot(vector, word_vector) / (
                 np.linalg.norm(word_vector) * np.linalg.norm(vector)
             )
@@ -127,6 +134,23 @@ class Vocabularies:
         cosine_vocab = sorted(cosine_vocab, key=lambda x: x[0], reverse=True)
 
         return [v for _, v in cosine_vocab[:n]]
+    
+    def output_words(self, word, n):
+        # this code snippet pick top 10 words
+
+        word_vector = self._data[self._data["vocabulary"] == word]["vector1"].values[0]
+        dot_vocab = []
+
+        for vocab in self.list_all():
+            if vocab == word:
+                continue
+            vector = self._data[self._data["vocabulary"] == vocab]["vector2"].values[0]
+            dot_value = np.dot(vector, word_vector) 
+            dot_vocab.append((dot_value, vocab))
+
+        dot_vocab = sorted(dot_vocab, key=lambda x: x[0], reverse=True)
+
+        return [v for _, v in dot_vocab[:n]]
 
     def hist(self, n):  # pragma: no cover
         plt.figure()
@@ -175,27 +199,6 @@ class Vocabularies:
 
     def fit_vector(self, article, window_size=2, embedding_dim=None, batch_size=None, epoch=1000):
         training_data = build_training_data_for_word_embedding(article, window_size)
-
-        training_input, training_output = zip(*[(self.get_index(context), self.get_index(target)) for context, target in training_data])
-
-        training_input = tf.reshape(tf.convert_to_tensor(training_input), [len(training_input), 1])
-        training_output = tf.reshape(tf.convert_to_tensor(training_output), [len(training_output), 1])
-
-        if not embedding_dim:
-            embedding_dim = int(0.5 * len(self))
-        if not batch_size:
-            batch_size = int(0.3 * len(training_data))
-        callback = EarlyStopping(monitor='loss', min_delta=0, patience=100)
-        model = word2vec(embedding_dim, len(self), batch_size)
-        model.fit(training_input, training_output, epochs=epoch, batch_size=batch_size, callbacks=[callback])
-
-        for vocab in self:
-            v = np.copy(model.weights[0][self.get_index(vocab)].numpy())
-            df = self._data
-            df.at[df.index[df["vocabulary"] == vocab][0], "vector"] = v
-
-    def fit_vector_using_glove(self, sentences, window_size=2, embedding_dim=None, batch_size=None, epoch=1000):
-        training_data = training_data_from_sentences(sentences, window_size)
 
         training_input, training_output = zip(*[(self.get_index(context), self.get_index(target)) for context, target in training_data])
 

@@ -2,7 +2,9 @@ from NLP.vocabularies import Vocabularies
 from collections import defaultdict
 import pandas as pd
 
+
 class TestVocabularies:
+
     def test_from_article(self, simple_article):
         vocabs = Vocabularies()
         vocabs.from_article(simple_article)

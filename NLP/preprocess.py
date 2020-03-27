@@ -184,11 +184,14 @@ STOPWORDS = {
     "yourselves",
 }
 
+
 def to_sentences(article):
     return article.split(". ")
 
+
 def remove_commas(sentences):
     return [sentence.replace(',', '') for sentence in sentences]
+
 
 def remove_punctuations(sentences):
     new_sentences = []
@@ -197,6 +200,7 @@ def remove_punctuations(sentences):
         words = [word for word in words if word != "." and word != ","]
         new_sentences.append(" ".join(words))
     return new_sentences
+
 
 def remove_rare_characters_by_word_count(article, word_count):
     vocabs = Vocabularies(article)
@@ -216,19 +220,22 @@ def remove_rare_characters_by_word_count(article, word_count):
     return " ".join(new_article)
 
 
-def keep_top_n_vocabularies(article, n):
-    vocabs = Vocabularies(article)
-    list_vocabs = vocabs.list_by_count()
-    vocabs_to_be_added, _ = zip(*list_vocabs[:n])
-    vocabs_to_be_added = set(vocabs_to_be_added)
+def keep_top_n_vocabularies(sentences, n):
+    vocabs = Vocabularies()
+    vocabs.from_sentences(sentences)
+    list_vocabs = vocabs.list_by_count(n)
+    vocabs_to_be_added = {element[0] for element in list_vocabs}
 
-    new_article = []
-    for word in article.split():
-        lower_word = word.lower()
-        if lower_word in vocabs_to_be_added:
-            new_article.append(word)
+    new_sentences = []
 
-    return " ".join(new_article)
+    for sentence in sentences:
+        new_sentence = []
+        for word in sentence.split():
+            if word.lower() in vocabs_to_be_added:
+                new_sentence.append(word)
+        new_sentences.append(" ".join(new_sentence))
+
+    return new_sentences
 
 
 def remove_rare_characters_by_count(article, count):
@@ -251,11 +258,30 @@ def remove_rare_characters_by_count(article, count):
     return " ".join(new_article)
 
 
-def remove_stop_words(article):
-    new_article = []
-    for word in article.split():
-        lower_word = word.lower()
-        if lower_word not in set(STOPWORDS):
-            new_article.append(word)
+def remove_stop_words(sentences):
+    new_sentences = []
+    for sentence in sentences:
+        new_sentence = []
+        for word in sentence.split():
+            if word.lower() not in set(STOPWORDS):
+                new_sentence.append(word)
+        new_sentences.append(" ".join(new_sentence))
 
-    return " ".join(new_article)
+    return new_sentences
+
+
+def training_data_from_sentences(sentences, window_size):
+
+    training_data = []
+    for sentence in sentences:
+        words = sentence.split()
+        for i in range(len(words)):
+            for j in range(max(0, i - window_size), min(len(words), i + window_size)):
+                if j == i or words[i] == words[j]:
+                    continue
+                else:
+                    training_data.append([words[i].lower(), words[j].lower()])
+
+    return training_data
+
+
