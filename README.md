@@ -13,5 +13,6 @@
 - [ ] Pandas change index to unique ID for words. Name Index column.
 - [ ] Write Test
 - [ ] Seperate Wiki
+- [ ] Revise name of the files
 - [ ] https://github.com/nicholas-leonard/word2vec/blob/master/questions-words.txt
  
