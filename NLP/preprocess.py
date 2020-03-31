@@ -224,7 +224,7 @@ def keep_top_n_vocabularies(sentences, n):
     vocabs = Vocabularies()
     vocabs.from_sentences(sentences)
     list_vocabs = vocabs.list_by_count(n)
-    vocabs_to_be_added = {element[0] for element in list_vocabs}
+    vocabs_to_be_added = list_vocabs['vocabulary'].values.tolist()
 
     new_sentences = []
 

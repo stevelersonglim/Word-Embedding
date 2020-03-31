@@ -6,22 +6,38 @@ import pandas as pd
 import numpy as np
 from .prepare import build_training_data_for_word_embedding, training_data_from_sentences
 import tensorflow as tf
-from .model import word2vec
 from tensorflow.keras.callbacks import EarlyStopping
+import math
 
 class Vocabulary:
 
-    def __init__(self, name, vector1, vector2):
+    def __init__(self, name, vector1, vector2, origin):
+        self.name = name
+        self.vector1 = vector1
+        self.vector2 = vector2
+        self.origin = origin
 
+    def __repr__(self):
+        return self.name
+
+    def __add__(self, other):
+        return self.origin.find_closest(np.array(self.vector1) + np.array(other.vector1), [self.name, other.name])
+
+    def __sub__(self, other):
+        return self.origin.find_closest(np.array(self.vector1) - np.array(other.vector1), [self.name, other.name])
 
 
 class Vocabularies:
     def __init__(self, training_data=None):
         self._vocabs_with_count = dict()
         self._data = None
+        self._data_cache = None
         self.total_count = None
         if training_data:
             self.from_training_data(training_data)
+
+    def __getitem__(self, word):
+        return Vocabulary(word, self.get_vector1(word), self.get_vector2(word), self)
 
     def __iter__(self):
         return iter(list(self._data["vocabulary"]))
@@ -99,22 +115,32 @@ class Vocabularies:
         self.total_count = len(self._vocabs_with_count)
 
     def list_by_count(self, n=None, ascending=False):
-        sorted_list = [
-            (k, v)
-            for k, v in sorted(
-                self._vocabs_with_count.items(),
-                key=lambda item: item[1],
-                reverse=not ascending,
-            )
-        ]
-        if n:
-            return sorted_list[:n]
-        return sorted_list
+        return self._data.sort_values(by=["count"], ascending=ascending)[["vocabulary", "count"]].head(n)
 
     def most_common(self, n=1):
         if n == 1:
             return self.list_by_count()[0][0]
         return [item[0] for item in self.list_by_count()[:n]]
+
+    def find_closest(self, vector, tabu_words):
+        minimum_error = math.inf
+        desired_vector1 = None
+        desired_vector2 = None
+        desired_vocab =None
+        for vocab in self._data["vocabulary"]:
+            if vocab in tabu_words:
+                continue
+            vector1 = self._data[self._data["vocabulary"] == vocab]["vector1"].values[0]
+            vector2 = self._data[self._data["vocabulary"] == vocab]["vector2"].values[0]
+            error = np.linalg.norm(vector - np.array(vector1))
+
+            if error < minimum_error:
+                desired_vector1 = vector1
+                desired_vector2 = vector2
+                desired_vocab = vocab
+                minimum_error = error
+
+        return Vocabulary(desired_vocab, desired_vector1, desired_vector2, self)
 
     def get_most_similar_words(self, word, n):
         # this code snippet pick top 10 words
@@ -168,13 +194,17 @@ class Vocabularies:
         df = self._data
         return df[df["vocabulary"] == word]["index"].values[0]
 
-    def get_vector(self, word):
+    def get_vector1(self, word):
         df = self._data
-        return df[df["vocabulary"] == word]["vector"].values[0]
+        return df[df["vocabulary"] == word]["vector1"].values[0]
+
+    def get_vector2(self, word):
+        df = self._data
+        return df[df["vocabulary"] == word]["vector2"].values[0]
 
     def perform_tsne(self):  # pragma: no cover
         df = self._data
-        tsne_output = TSNE(n_components=2).fit_transform(np.array(list(df["vector"])))
+        tsne_output = TSNE(n_components=2).fit_transform(np.array(list(df["vector1"])))
         df["tsne1"] = tsne_output[:, 0]
         df["tsne2"] = tsne_output[:, 1]
         return [tuple(item) for item in df[["vocabulary", "tsne1", "tsne2"]].to_numpy()]
@@ -197,23 +227,19 @@ class Vocabularies:
 
         return point + text
 
-    def fit_vector(self, article, window_size=2, embedding_dim=None, batch_size=None, epoch=1000):
-        training_data = build_training_data_for_word_embedding(article, window_size)
+    def keep_top_vocabularies(self, n):
+        df = self._data
+        df.sort_values(by=["count"], ascending=False)
+        self._data_cache = self._data
+        self._data = df.head(n)
 
-        training_input, training_output = zip(*[(self.get_index(context), self.get_index(target)) for context, target in training_data])
+    def reset(self):
+        if self._data_cache is not None:
+            self._data = self._data_cache
+            self._data_cache = None
 
-        training_input = tf.reshape(tf.convert_to_tensor(training_input), [len(training_input), 1])
-        training_output = tf.reshape(tf.convert_to_tensor(training_output), [len(training_output), 1])
-
-        if not embedding_dim:
-            embedding_dim = int(0.5 * len(self))
-        if not batch_size:
-            batch_size = int(0.3 * len(training_data))
-        callback = EarlyStopping(monitor='loss', min_delta=0, patience=100)
-        model = word2vec(embedding_dim, len(self), batch_size)
-        model.fit(training_input, training_output, epochs=epoch, batch_size=batch_size, callbacks=[callback])
-
-        for vocab in self:
-            v = np.copy(model.weights[0][self.get_index(vocab)].numpy())
-            df = self._data
-            df.at[df.index[df["vocabulary"] == vocab][0], "vector"] = v
+    def word_analogy(self, query, analogy):
+        word1, word2 = analogy
+        output = self.get_vector1(query) - (self.get_vector1(word1) - self.get_vector1(word2))
+        tabu_words = [word1, word2, query]
+        return self.find_closest(output, tabu_words)

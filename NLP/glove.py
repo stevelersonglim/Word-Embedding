@@ -1,30 +1,10 @@
 import tensorflow as tf
-from collections import Counter
-import numpy as np
 import copy
-import math
-import random
 
 
 class Glove(object):
     def __init__(self, embedding_size, vocab):
         tf.compat.v1.disable_v2_behavior()
-        # Initialize the weights to `5.0` and the bias to `0.0`
-        # In practice, these should be initialized to random values (for example, with `tf.random.normal`)
-
-        #         self.W = []
-        #         self.W_tilde = []
-        #         self.b = []
-        #         self.b_tilde = []
-
-        #         for index in range(len(vocab)):
-        #             self.W.append(tf.Variable(tf.zeros((embedding_dimension))))
-        #             self.W_tilde.append(tf.Variable(tf.zeros((embedding_dimension))))
-        #             self.b.append(tf.Variable(0.))
-        #             self.b_tilde.append(tf.Variable(0.))
-
-        #         self.var_list = self.W + self.W_tilde + self.b + self.b_tilde
-
         self.vocab = vocab
         self.vocab_size = len(vocab)
         self.embedding_size = embedding_size

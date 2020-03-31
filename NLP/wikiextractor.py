@@ -150,6 +150,20 @@ def extract_wiki(article_name):
    return wiki
 
 
+def extract_sentences_from_wiki(article_list):
+    if not isinstance(article_list, list):
+        article_list = [article_list]
 
+    sentences = []
 
+    for article in article_list:
+        wiki = extract_wiki(article)
+        useless_sections = ['See also', 'Notes', 'References', 'External links']
+        for useless_section in useless_sections:
+            if useless_section in wiki:
+                del wiki[useless_section]
 
+        for value in wiki.values():
+            sentences.extend(value.split(". "))
+
+    return sentences
